@@ -19,4 +19,12 @@ char* read_cmd(char* prompt, FILE* fp);
 char** tokenize(char* cmdline);
 int execute(char** arglist);
 
+// Built-in command function prototypes
+int shell_cd(char **args);
+int shell_help(char **args);
+int shell_exit(char **args);
+int shell_jobs(char **args);
+int handle_builtin(char **args);
+
 #endif // SHELL_H
+
