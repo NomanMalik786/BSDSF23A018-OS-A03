@@ -1,101 +1,68 @@
 #include "shell.h"
-#include <string.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
 
 /* ===== Built-in command list ===== */
-char *builtin_str[] = {"cd", "help", "exit", "jobs"};
+char *builtin_str[] = {"cd", "help", "exit", "jobs", "history"};
 
 int (*builtin_func[])(char **) = {
     &shell_cd,
     &shell_help,
     &shell_exit,
-    &shell_jobs
+    &shell_jobs,
+    &shell_history
 };
 
 int num_builtins() {
     return sizeof(builtin_str) / sizeof(char *);
 }
 
-/* ===== Execute function ===== */
+/* ===== Execute external commands ===== */
 int execute(char* arglist[]) {
     int status;
-
-    // ✅ Handle built-in commands before forking
-    int builtin_status = handle_builtin(arglist);
-    if (builtin_status == 0) {
-        // exit command: terminate the shell
-        exit(0);
-    } else if (builtin_status == 1) {
-        // handled a built-in (cd/help/jobs)
-        return 0;
-    }
-
-    // Only reach here for external commands
     int cpid = fork();
 
     switch (cpid) {
         case -1:
             perror("fork failed");
             exit(1);
-
-        case 0: // Child process
+        case 0:
             execvp(arglist[0], arglist);
-            perror("Command not found"); // This runs only if execvp fails
+            perror("Command not found");
             exit(1);
-
-        default: // Parent process
+        default:
             waitpid(cpid, &status, 0);
             return 0;
     }
 }
 
-/* ===== Built-in command implementations ===== */
-
-// cd <directory>
+/* ===== Built-ins Implementation ===== */
 int shell_cd(char **args) {
-    if (args[1] == NULL) {
+    if (args[1] == NULL)
         fprintf(stderr, "myshell: expected argument to \"cd\"\n");
-    } else {
-        if (chdir(args[1]) != 0) {
-            perror("myshell");
-        }
-    }
+    else if (chdir(args[1]) != 0)
+        perror("myshell");
     return 1;
 }
 
-// help
 int shell_help(char **args) {
     printf("MyShell — Built-in commands:\n");
-    printf("  cd <dir>  : Change the directory\n");
-    printf("  help      : Show this help message\n");
-    printf("  exit      : Exit the shell\n");
-    printf("  jobs      : Show job control message\n");
+    printf("  cd <dir>   : Change directory\n");
+    printf("  help       : Show this help message\n");
+    printf("  exit       : Exit the shell\n");
+    printf("  jobs       : Show job control message\n");
+    printf("  history    : Show command history\n");
     return 1;
 }
 
-// exit
 int shell_exit(char **args) {
-    return 0;   // signal to terminate shell
+    return 0;
 }
 
-// jobs (placeholder)
 int shell_jobs(char **args) {
     printf("Job control not yet implemented.\n");
     return 1;
 }
 
-/* ===== Built-in handler ===== */
-int handle_builtin(char **args) {
-    if (args[0] == NULL)
-        return 1;  // Empty command — continue shell
-
-    for (int i = 0; i < num_builtins(); i++) {
-        if (strcmp(args[0], builtin_str[i]) == 0) {
-            return (*builtin_func[i])(args);
-        }
-    }
-    return -1;  // Not a built-in
+int shell_history(char **args) {
+    show_history();
+    return 1;
 }
-

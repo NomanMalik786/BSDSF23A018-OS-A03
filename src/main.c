@@ -1,22 +1,46 @@
 #include "shell.h"
 
 int main() {
-    char* cmdline;
-    char** arglist;
+    char *cmdline;
+    char **arglist;
+    int status = 1;
 
-    while ((cmdline = read_cmd(PROMPT, stdin)) != NULL) {
-        if ((arglist = tokenize(cmdline)) != NULL) {
-            execute(arglist);
+    while (status) {
+        printf("%s", PROMPT);
+        cmdline = read_cmd("", stdin);
 
-            // Free the memory allocated by tokenize()
-            for (int i = 0; arglist[i] != NULL; i++) {
-                free(arglist[i]);
+        if (cmdline == NULL)
+            break;
+
+        // Handle !n command before adding to history
+        if (cmdline[0] == '!') {
+            int index = atoi(cmdline + 1);
+            char *hist_cmd = get_history_command(index);
+            if (hist_cmd != NULL) {
+                printf("%s\n", hist_cmd);
+                free(cmdline);
+                cmdline = strdup(hist_cmd);
+            } else {
+                free(cmdline);
+                continue;
             }
-            free(arglist);
         }
+
+        // Add to history
+        add_history(cmdline);
+
+        arglist = tokenize(cmdline);
+
+        if (arglist[0] != NULL) {
+            if (!handle_builtin(arglist))
+                execute(arglist);
+        }
+
+        for (int i = 0; arglist[i] != NULL; i++)
+            free(arglist[i]);
+        free(arglist);
         free(cmdline);
     }
 
-    printf("\nShell exited.\n");
     return 0;
 }

@@ -1,62 +1,43 @@
 #include "shell.h"
 
+extern char *builtin_str[];
+extern int (*builtin_func[])(char **);
+extern int num_builtins();
+
 char* read_cmd(char* prompt, FILE* fp) {
     printf("%s", prompt);
-    char* cmdline = (char*) malloc(sizeof(char) * MAX_LEN);
-    int c, pos = 0;
-
-    while ((c = getc(fp)) != EOF) {
-        if (c == '\n') break;
-        cmdline[pos++] = c;
-    }
-
-    if (c == EOF && pos == 0) {
+    char *cmdline = (char*)malloc(MAX_LEN);
+    if (fgets(cmdline, MAX_LEN, fp) == NULL) {
         free(cmdline);
-        return NULL; // Handle Ctrl+D
+        return NULL;
     }
-    
-    cmdline[pos] = '\0';
+    size_t length = strlen(cmdline);
+    if (cmdline[length - 1] == '\n')
+        cmdline[length - 1] = '\0';
     return cmdline;
 }
 
 char** tokenize(char* cmdline) {
-    // Edge case: empty command line
-    if (cmdline == NULL || cmdline[0] == '\0' || cmdline[0] == '\n') {
-        return NULL;
-    }
-
-    char** arglist = (char**)malloc(sizeof(char*) * (MAXARGS + 1));
-    for (int i = 0; i < MAXARGS + 1; i++) {
-        arglist[i] = (char*)malloc(sizeof(char) * ARGLEN);
-        bzero(arglist[i], ARGLEN);
-    }
-
-    char* cp = cmdline;
-    char* start;
-    int len;
+    char **arglist = (char**)malloc(sizeof(char*) * (MAXARGS + 1));
     int argnum = 0;
-
-    while (*cp != '\0' && argnum < MAXARGS) {
-        while (*cp == ' ' || *cp == '\t') cp++; // Skip leading whitespace
-        
-        if (*cp == '\0') break; // Line was only whitespace
-
-        start = cp;
-        len = 1;
-        while (*++cp != '\0' && !(*cp == ' ' || *cp == '\t')) {
-            len++;
-        }
-        strncpy(arglist[argnum], start, len);
-        arglist[argnum][len] = '\0';
+    char *token = strtok(cmdline, " ");
+    while (token != NULL && argnum < MAXARGS) {
+        arglist[argnum] = (char*)malloc(ARGLEN);
+        strncpy(arglist[argnum], token, ARGLEN);
         argnum++;
+        token = strtok(NULL, " ");
     }
-
-    if (argnum == 0) { // No arguments were parsed
-        for(int i = 0; i < MAXARGS + 1; i++) free(arglist[i]);
-        free(arglist);
-        return NULL;
-    }
-
     arglist[argnum] = NULL;
     return arglist;
+}
+
+int handle_builtin(char **args) {
+    if (args[0] == NULL) return 0;
+
+    for (int i = 0; i < num_builtins(); i++) {
+        if (strcmp(args[0], builtin_str[i]) == 0)
+            return (*builtin_func[i])(args);
+    }
+
+    return 0;
 }
