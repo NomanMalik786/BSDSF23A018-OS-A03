@@ -1,22 +1,29 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <readline/readline.h>
+#include <readline/history.h>
 #include "shell.h"
 
 int main() {
     char *cmdline;
     char **arglist;
-    int status = 1;
 
-    while (status) {
-        printf("%s", PROMPT);
-        cmdline = read_cmd("", stdin);
+    while (1) {
+        cmdline = readline(PROMPT);
+        if (!cmdline) break;
 
-        if (cmdline == NULL)
-            break;
+        if (strlen(cmdline) == 0) {
+            free(cmdline);
+            continue;
+        }
 
-        // Handle !n command before adding to history
+        // Handle !n history
         if (cmdline[0] == '!') {
             int index = atoi(cmdline + 1);
             char *hist_cmd = get_history_command(index);
-            if (hist_cmd != NULL) {
+            if (hist_cmd) {
                 printf("%s\n", hist_cmd);
                 free(cmdline);
                 cmdline = strdup(hist_cmd);
@@ -26,21 +33,29 @@ int main() {
             }
         }
 
-        // Add to history
+        // Add to Readline history (arrow keys & tab)
         add_history(cmdline);
 
-        arglist = tokenize(cmdline);
+        // Add to custom history for !n
+        add_custom_history(cmdline);
 
-        if (arglist[0] != NULL) {
-            if (!handle_builtin(arglist))
+        // Tokenize and execute
+        arglist = tokenize(cmdline);
+        if (arglist[0]) {
+            int status = handle_builtin(arglist);
+            if (status == -1) { // exit
+                for (int i=0; arglist[i]; i++) free(arglist[i]);
+                free(arglist);
+                free(cmdline);
+                break;
+            } else if (status == 0) {
                 execute(arglist);
+            }
         }
 
-        for (int i = 0; arglist[i] != NULL; i++)
-            free(arglist[i]);
+        for (int i=0; arglist[i]; i++) free(arglist[i]);
         free(arglist);
         free(cmdline);
     }
-
     return 0;
 }
